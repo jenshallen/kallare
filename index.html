@@ -115,6 +115,9 @@ label.f input,label.f select,label.f textarea{border:1px solid var(--line);backg
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:30;max-width:calc(100vw - 32px)}
 .ctl{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;margin:8px 0 2px}
 .ctlr{display:flex;gap:6px;align-items:center;margin-left:auto}
+button.fact{text-align:left;font:inherit;color:inherit;background:none;width:100%}
+.fact.go:active,.col.go:active{background:var(--claret-soft)}
+.col.go{cursor:pointer}
 .tdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
 .chip.on{background:var(--claret);border-color:var(--claret);color:var(--surface)}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;vertical-align:middle}
@@ -195,7 +198,7 @@ label.f input,label.f select,label.f textarea{border:1px solid var(--line);backg
 
 <script>
 "use strict";
-const APP_VERSION="2026-11-01b";
+const APP_VERSION="2026-11-01c";
 const NOW=new Date().getFullYear();
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -220,7 +223,7 @@ async function encText(key,obj){const iv=crypto.getRandomValues(new Uint8Array(1
 
 /* ---------- state ---------- */
 let K=null, snap=null, view=ls.get("v","list");
-const ui=Object.assign({q:"",place:"",sort:"region",types:[],status:"",region:"",mode:"list"},ls.get("ui",{}));
+const ui=Object.assign({q:"",place:"",sort:"region",types:[],status:"",region:"",mode:"list",ids:null,idsLabel:""},ls.get("ui",{}));
 const TYPES=["Champagne","Vitt","Sött","Rött"],TCOL={Champagne:"var(--t-champ)",Vitt:"var(--t-white)",Sött:"var(--t-sweet)",Rött:"var(--t-red)"};
 const saveUi=()=>ls.set("ui",ui);
 let ops=ls.get("ops",[]);
@@ -305,7 +308,7 @@ function render(){
 }
 function renderList(){
   const q=ui.q.trim().toLowerCase();
-  let L=wines().filter(w=>w.qty>0||w._changed).filter(w=>(!ui.place||w.place===ui.place)&&(!ui.types.length||ui.types.includes(w.type))&&(!ui.status||status(w)===ui.status)&&(!ui.region||w.region===ui.region));
+  let L=wines().filter(w=>w.qty>0||w._changed).filter(w=>(!ui.place||w.place===ui.place)&&(!ui.types.length||ui.types.includes(w.type))&&(!ui.status||status(w)===ui.status)&&(!ui.region||w.region===ui.region)&&(!ui.ids||ui.ids.includes(w.id)));
   if(q)L=L.filter(w=>q.split(/\s+/).every(t=>[w.year,w.name,w.producer,w.sub,w.region,w.country,w.loc].join(" ").toLowerCase().includes(t)));
   const s=ui.sort;
   if(s==="place")L.sort((a,b)=>(PLACES.indexOf(a.place)+99)%99-(PLACES.indexOf(b.place)+99)%99||regionCmp(a,b));
@@ -314,7 +317,7 @@ function renderList(){
   else L.sort(regionCmp);
   const head=`<input class="search" id="q" type="search" placeholder="Sök vin, producent, årgång…" autocomplete="off">
     <div class="chips"><button class="chip" data-place="" aria-pressed="${!ui.place}">Alla platser</button>${PLACES.map(p=>`<button class="chip" data-place="${esc(p)}" aria-pressed="${ui.place===p}">${esc(p.replace(" (MFW)",""))}</button>`).join("")}</div>
-    <div class="chips">${ui.status?`<button class="chip on" data-clear="status">${ST[ui.status][0]} ✕</button>`:""}${ui.region?`<button class="chip on" data-clear="region">${esc(ui.region)} ✕</button>`:""}${TYPES.map(t=>`<button class="chip" data-type="${t}" aria-pressed="${ui.types.includes(t)}"><span class="tdot" style="background:${TCOL[t]}"></span>${t}</button>`).join("")}</div>
+    <div class="chips">${ui.status?`<button class="chip on" data-clear="status">${ST[ui.status][0]} ✕</button>`:""}${ui.region?`<button class="chip on" data-clear="region">${esc(ui.region)} ✕</button>`:""}${ui.ids?`<button class="chip on" data-clear="ids">${esc(ui.idsLabel||"Urval")} ✕</button>`:""}${TYPES.map(t=>`<button class="chip" data-type="${t}" aria-pressed="${ui.types.includes(t)}"><span class="tdot" style="background:${TCOL[t]}"></span>${t}</button>`).join("")}</div>
     <div class="ctl"><span class="sub">${L.length} rader · ${L.reduce((s,w)=>s+w.qty,0)} fl</span>
     <span class="ctlr"><select id="sort"><option value="region"${s==="region"?" selected":""}>Land och region</option><option value="place"${s==="place"?" selected":""}>Lagringsplats</option><option value="value"${s==="value"?" selected":""}>Värde</option><option value="drink"${s==="drink"?" selected":""}>Drick först</option></select> <span class="seg"><button data-mode="list" aria-pressed="${ui.mode!=="cards"}" aria-label="Lista">☰</button><button data-mode="cards" aria-pressed="${ui.mode==="cards"}" aria-label="Vinkort">▦</button></span> <button class="chip" id="addBtn" type="button">+ Nytt</button></span></div>`;
   if(!L.length) return head+`<p class="sub" style="text-align:center;padding:30px">Inga viner matchar.</p>`;
@@ -426,7 +429,7 @@ function renderVert(){
 /* översikt */
 function colChart(cols,two,every){
   const max=Math.max(1,...cols.map(c=>Math.max(c.a||0,c.b||0)));
-  return `<div class="cols">${cols.map(c=>`<div class="col${c.now?" now":""}" data-tip="${esc(c.tip)}">${two?`<span class="b win" style="height:${(c.a/max*100).toFixed(1)}%"></span><span class="b pk2" style="height:${(c.b/max*100).toFixed(1)}%"></span>`:`<span class="b one" style="height:${(c.a/max*100).toFixed(1)}%"></span>`}</div>`).join("")}</div><div class="xlab">${cols.map((c,i)=>`<span>${every&&i%every?"":esc(c.x)}</span>`).join("")}</div>`;
+  return `<div class="cols">${cols.map(c=>`<div class="col${c.now?" now":""}${c.ids&&c.ids.length?" go":""}" data-tip="${esc(c.tip)}"${c.ids&&c.ids.length?` data-ids="${esc(c.ids.join(","))}" data-lbl="${esc(c.lbl||c.tip)}"`:""}>${two?`<span class="b win" style="height:${(c.a/max*100).toFixed(1)}%"></span><span class="b pk2" style="height:${(c.b/max*100).toFixed(1)}%"></span>`:`<span class="b one" style="height:${(c.a/max*100).toFixed(1)}%"></span>`}</div>`).join("")}</div><div class="xlab">${cols.map((c,i)=>`<span>${every&&i%every?"":esc(c.x)}</span>`).join("")}</div>`;
 }
 function renderStats(){
   const L=wines().filter(w=>w.qty>0),n=L.reduce((s,w)=>s+w.qty,0),val=L.reduce((s,w)=>s+w.qty*(w.value||0),0),buy=L.reduce((s,w)=>s+w.qty*(w.buy||0),0);
@@ -438,18 +441,19 @@ function renderStats(){
   const gain=L.filter(w=>w.buy).sort((a,b)=>b.value/b.buy-a.value/a.buy)[0];
   const prods={};L.forEach(w=>prods[w.producer]=(prods[w.producer]||0)+w.qty);const tp=Object.entries(prods).sort((a,b)=>b[1]-a[1])[0];
   const lastYr=Math.max(...L.map(w=>(win(w)||{}).to||0));
-  const fact=(k,v,d)=>`<div class="fact"><div class="k">${k}</div><div class="v num">${v}</div><div class="d">${d}</div></div>`;
-  const facts=[fact("Värde",kshort(val),buy?`${val/buy-1>=0?"+":""}${Math.round((val/buy-1)*100)} % mot inköp`:""),fact("Flaskor",n,`${L.length} viner och årgångar`),
-    fact("Räcker i",`${(n/52).toLocaleString("sv-SE",{maximumFractionDigits:1})} år`,"med en flaska i veckan"),fact("Snittvärde",kr(val/n),"per flaska"),
-    fact("Dyraste",kr(dear.value),nm(dear)),fact("Största innehav",kshort(big.qty*big.value),`${big.qty} fl ${nm(big)}`),
-    fact("Högst betyg",esc(top.parker||"–"),nm(top)),fact("Äldsta",old.year||"–",nm(old)),
-    fact("Flest flaskor",`${most.qty} fl`,nm(most)),fact("Bästa affären",gain?`+${Math.round((gain.value/gain.buy-1)*100)} %`:"–",gain?nm(gain):""),
-    fact("Favoritproducent",`${tp[1]} fl`,esc(tp[0]||"")),fact("Sista drickår",lastYr||"–","då stänger sista fönstret")].join("");
+  const fact=(k,v,d,ws,lbl)=>{const ids=ws===true?"*":(ws||[]).filter(Boolean).map(w=>w.id).join(",");return `<button class="fact go" ${ids?`data-ids="${esc(ids)}" data-lbl="${esc(lbl||k)}"`:""}><div class="k">${k} ›</div><div class="v num">${v}</div><div class="d">${d}</div></button>`;};
+  const prodW=L.filter(w=>w.producer===tp[0]),lastW=L.filter(w=>(win(w)||{}).to===lastYr),topW=L.filter(w=>top.parker&&pNum(w.parker)===pNum(top.parker)),oldW=L.filter(w=>w.year===old.year);
+  const facts=[fact("Värde",kshort(val),buy?`${val/buy-1>=0?"+":""}${Math.round((val/buy-1)*100)} % mot inköp`:"",true),fact("Flaskor",n,`${L.length} viner och årgångar`,true),
+    fact("Räcker i",`${(n/52).toLocaleString("sv-SE",{maximumFractionDigits:1})} år`,"med en flaska i veckan",true),fact("Snittvärde",kr(val/n),"per flaska",L.filter(w=>(w.value||0)>=val/n),"Över snittvärdet"),
+    fact("Dyraste",kr(dear.value),nm(dear),[dear],"Dyraste flaskan"),fact("Största innehav",kshort(big.qty*big.value),`${big.qty} fl ${nm(big)}`,[big],"Största innehavet"),
+    fact("Högst betyg",esc(top.parker||"–"),nm(top),topW,`Parker ${pNum(top.parker)}`),fact("Äldsta",old.year||"–",nm(old),oldW,`Årgång ${old.year}`),
+    fact("Flest flaskor",`${most.qty} fl`,nm(most),[most],"Flest flaskor"),fact("Bästa affären",gain?`+${Math.round((gain.value/gain.buy-1)*100)} %`:"–",gain?nm(gain):"",gain?[gain]:[],"Bästa affären"),
+    fact("Favoritproducent",`${tp[1]} fl`,esc(tp[0]||""),prodW,tp[0]),fact("Sista drickår",lastYr||"–","då stänger sista fönstret",lastW,`Fönster till ${lastYr}`)].join("");
   // status
   const stat=Object.keys(ST).filter(k=>cnt[k]).map(k=>`<button class="hbar sbtn" data-status="${k}"><span class="${ST[k][1]}" style="font-weight:600">${ST[k][0]}</span><span class="tr"><span style="width:${(cnt[k]/n*100).toFixed(1)}%;background:currentColor" class="${ST[k][1]}"></span></span><span class="n">${cnt[k]} ›</span></button>`).join("");
   // drickplan
   const yrs=[];for(let y=NOW;y<=NOW+24;y++)yrs.push(y);
-  const plan=yrs.map(y=>{let a=0,b=0;L.forEach(w=>{const v=win(w);if(!v)return;if(y>=v.from&&y<=v.to)a+=w.qty;const z=zones(v);if(Math.abs(y-z.mid)<=z.band)b+=w.qty;});return{x:"’"+String(y).slice(2),a,b,y,now:y===NOW,tip:`${y}: ${a} fl i fönstret, ${b} vid topp`};});
+  const plan=yrs.map(y=>{let a=0,b=0;L.forEach(w=>{const v=win(w);if(!v)return;if(y>=v.from&&y<=v.to)a+=w.qty;const z=zones(v);if(Math.abs(y-z.mid)<=z.band)b+=w.qty;});const pkW=L.filter(w=>{const v=win(w);if(!v)return false;const z=zones(v);return Math.abs(y-z.mid)<=z.band;});const inW=L.filter(w=>{const v=win(w);return v&&y>=v.from&&y<=v.to;});return{x:"’"+String(y).slice(2),a,b,y,now:y===NOW,tip:`${y}: ${a} fl i fönstret, ${b} vid topp`,ids:(pkW.length?pkW:inW).map(w=>w.id),lbl:pkW.length?`Vid topp ${y}`:`I fönstret ${y}`};});
   const best=plan.reduce((m,c)=>c.b>m.b?c:m,{b:-1});
   // distrikt per typ
   const reg={};L.forEach(w=>{const r=w.region||"Övrigt";(reg[r]=reg[r]||{n:0,t:{}});reg[r].n+=w.qty;reg[r].t[w.type]=(reg[r].t[w.type]||0)+w.qty;});
@@ -459,13 +463,13 @@ function renderStats(){
   const tyH=`<div class="stack">${TYPES.filter(t=>ty[t]).map(t=>`<span style="flex:${ty[t]};background:${TCOL[t]}"></span>`).join("")}</div><div class="legend">${TYPES.filter(t=>ty[t]).map(t=>`<button class="lg" data-type-go="${t}"><i style="background:${TCOL[t]}"></i>${t} ${ty[t]} fl · ${Math.round(ty[t]/n*100)} %</button>`).join("")}</div>`;
   // parker
   const bk=[["≤90",0,90],["91–93",91,93],["94–95",94,95],["96–97",96,97],["98–100",98,100]];
-  const pk=bk.map(([x,lo,hi])=>{const c=L.filter(w=>{const p=pNum(w.parker);return p&&p>=lo&&p<=hi;}).reduce((s,w)=>s+w.qty,0);return{x,a:c,tip:`Parker ${x}: ${c} fl`};});
+  const pk=bk.map(([x,lo,hi])=>{const c=L.filter(w=>{const p=pNum(w.parker);return p&&p>=lo&&p<=hi;}).reduce((s,w)=>s+w.qty,0);return{x,a:c,tip:`Parker ${x}: ${c} fl`,ids:L.filter(w=>{const p=pNum(w.parker);return p&&p>=lo&&p<=hi;}).map(w=>w.id),lbl:`Parker ${x}`};});
   const noP=L.filter(w=>!pNum(w.parker)).reduce((s,w)=>s+w.qty,0);
   // årgångar
-  const vy={};L.forEach(w=>{if(w.year)vy[w.year]=(vy[w.year]||0)+w.qty;});const ys=Object.keys(vy).map(Number);const vint=[];for(let y=Math.min(...ys);y<=Math.max(...ys);y++)vint.push({x:"’"+String(y).slice(2),a:vy[y]||0,tip:`${y}: ${vy[y]||0} fl`});
+  const vy={};L.forEach(w=>{if(w.year)vy[w.year]=(vy[w.year]||0)+w.qty;});const ys=Object.keys(vy).map(Number);const vint=[];for(let y=Math.min(...ys);y<=Math.max(...ys);y++)vint.push({x:"’"+String(y).slice(2),a:vy[y]||0,tip:`${y}: ${vy[y]||0} fl`,ids:L.filter(w=>w.year===y).map(w=>w.id),lbl:`Årgång ${y}`});
   return `<div class="panel"><h2>Kul fakta</h2><div class="facts">${facts}</div></div>
     <div class="panel"><h2>Drickfönster ${NOW}</h2><p class="sub" style="margin:-4px 0 8px">Tryck för att se vinerna.</p>${stat}</div>
-    <div class="panel"><h2>Drickplan ${NOW}–${NOW+24}</h2><p class="sub" style="margin:-4px 0 8px">Flaskor i fönstret per år och hur många som är vid topp.${best.b>0?` Flest vid topp: <b style="color:var(--ink)">${best.y}</b> (${best.b} fl).`:""}</p>${colChart(plan,true,4)}
+    <div class="panel"><h2>Drickplan ${NOW}–${NOW+24}</h2><p class="sub" style="margin:-4px 0 8px">Flaskor i fönstret per år och hur många som är vid topp. Tryck på ett år för att se vinerna.${best.b>0?` Flest vid topp: <b style="color:var(--ink)">${best.y}</b> (${best.b} fl).`:""}</p>${colChart(plan,true,4)}
       <div class="legend"><span><i style="background:var(--claret-soft);border:1px solid var(--claret)"></i>I fönstret</span><span><i style="background:var(--claret)"></i>Vid topp</span></div><div id="tipline" class="sub" style="min-height:1.4em;margin-top:4px"></div></div>
     <div class="panel"><h2>Flaskor per distrikt</h2>${regH}<div class="legend">${TYPES.filter(t=>ty[t]).map(t=>`<span><i style="background:${TCOL[t]}"></i>${t}</span>`).join("")}</div></div>
     <div class="panel"><h2>Typ av vin</h2>${tyH}</div>
@@ -502,11 +506,12 @@ document.addEventListener("click",e=>{
   const tab=t.closest("nav.tabs button");if(tab){view=tab.dataset.v;ls.set("v",view);render();window.scrollTo(0,0);return;}
   const ch=t.closest("[data-place]");if(ch){ui.place=ch.dataset.place;saveUi();render();return;}
   const ty=t.closest("[data-type]");if(ty){const v=ty.dataset.type;ui.types=ui.types.includes(v)?ui.types.filter(x=>x!==v):[...ui.types,v];saveUi();render();return;}
-  const tg=t.closest("[data-type-go]");if(tg){ui.types=[tg.dataset.typeGo];ui.status="";ui.region="";goList();return;}
-  const sb=t.closest("[data-status]");if(sb){ui.status=sb.dataset.status;ui.region="";goList();return;}
-  const rb=t.closest("[data-region]");if(rb){ui.region=rb.dataset.region;ui.status="";goList();return;}
-  const cl=t.closest("[data-clear]");if(cl){ui[cl.dataset.clear]="";saveUi();render();return;}
+  const tg=t.closest("[data-type-go]");if(tg){ui.types=[tg.dataset.typeGo];ui.status="";ui.region="";ui.ids=null;goList();return;}
+  const sb=t.closest("[data-status]");if(sb){ui.status=sb.dataset.status;ui.region="";ui.ids=null;goList();return;}
+  const rb=t.closest("[data-region]");if(rb){ui.region=rb.dataset.region;ui.status="";ui.ids=null;goList();return;}
+  const cl=t.closest("[data-clear]");if(cl){const k=cl.dataset.clear;ui[k]=k==="ids"?null:"";saveUi();render();return;}
   const md=t.closest("[data-mode]");if(md){ui.mode=md.dataset.mode;saveUi();render();return;}
+  const gi=t.closest("[data-ids]");if(gi){const v=gi.dataset.ids;ui.status="";ui.region="";ui.types=[];if(v==="*"){ui.ids=null;ui.idsLabel="";}else{ui.ids=v.split(",");ui.idsLabel=gi.dataset.lbl||"Urval";}goList();return;}
   const tip=t.closest("[data-tip]");if(tip){const l=$("#tipline");if(l)l.textContent=tip.dataset.tip;return;}
   const mi=t.closest("[data-minus]");if(mi){openDrink(mi.dataset.minus);return;}
   const dr=t.closest("[data-drink]");if(dr){openDrink(dr.dataset.drink);return;}
