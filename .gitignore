@@ -1,0 +1,3 @@
+data/
+*.plain.json
+__pycache__/
