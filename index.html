@@ -195,6 +195,7 @@ label.f input,label.f select,label.f textarea{border:1px solid var(--line);backg
 
 <script>
 "use strict";
+const APP_VERSION="2026-11-01b";
 const NOW=new Date().getFullYear();
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -227,7 +228,12 @@ function saveOps(){ls.set("ops",ops);badges();}
 async function fetchJson(url,fresh){const r=await fetch(url+(fresh?"?t="+Date.now():""),{cache:fresh?"no-store":"default"});if(!r.ok)throw new Error(r.status);return r.json();}
 
 async function boot(){
-  if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}
+  if("serviceWorker" in navigator){
+    const hadCtl=!!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>{window.__reg=r;r.update().catch(()=>{});}).catch(()=>{});
+    // ny version av appen installerad → ladda om en gång
+    navigator.serviceWorker.addEventListener("controllerchange",()=>{if(hadCtl&&!window.__reloading){window.__reloading=true;location.reload();}});
+  }
   const raw=ls.get("k",null)||(()=>{try{return sessionStorage.getItem("k");}catch(e){return null;}})();
   if(raw){try{K=await importK(b64d(raw));await loadData(false);return;}catch(e){K=null;}}
   showLock();
@@ -478,7 +484,7 @@ function renderSync(){
   <div class="panel"><h2>Data</h2><p class="sub" style="margin-top:0">Källarkopian är från <b>${fmtDate(snap.generatedAt)}</b>${snap.lastRun?`, priser från ${fmtDate(snap.lastRun)}`:""}. ${navigator.onLine?"Du är uppkopplad.":"Du är offline."}</p>
     <button class="btn block" id="refreshBtn">Hämta senaste</button></div>
   <div class="panel"><h2>Säkerhet</h2><p class="sub" style="margin-top:0">${ls.get("k",null)?"Lösenordet är ihågkommet på den här enheten.":"Lösenordet frågas varje gång appen startas."}</p>
-    <button class="btn block" id="forgetBtn">Lås och glöm lösenordet på enheten</button></div>`;
+    <button class="btn block" id="forgetBtn">Lås och glöm lösenordet på enheten</button><p class="note">Appversion ${APP_VERSION}</p></div>`;
 }
 async function exportOps(){
   const code=await encText(K,{exportedAt:new Date().toISOString(),device:navigator.userAgent.slice(0,80),ops});
@@ -518,7 +524,7 @@ document.addEventListener("change",e=>{if(e.target.id==="sort"){ui.sort=e.target
 $("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet")closeSheet();});
 window.addEventListener("online",()=>{if(snap){render();refresh(true);}});
 window.addEventListener("offline",()=>{if(snap)render();});
-document.addEventListener("visibilitychange",()=>{if(!document.hidden&&snap&&navigator.onLine){const last=ls.get("lastFetch",0);if(Date.now()-last>3600e3){ls.set("lastFetch",Date.now());refresh(true);}}});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&snap&&navigator.onLine){const last=ls.get("lastFetch",0);if(window.__reg)window.__reg.update().catch(()=>{});if(Date.now()-last>120e3){ls.set("lastFetch",Date.now());refresh(true);}}});
 boot();
 </script>
 </body>
