@@ -113,6 +113,45 @@ label.f input,label.f select,label.f textarea{border:1px solid var(--line);backg
 .oplist{font-size:14px;display:grid;gap:6px}
 .oplist div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding-bottom:6px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:30;max-width:calc(100vw - 32px)}
+.ctl{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;margin:8px 0 2px}
+.ctlr{display:flex;gap:6px;align-items:center;margin-left:auto}
+.tdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.chip.on{background:var(--claret);border-color:var(--claret);color:var(--surface)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;vertical-align:middle}
+.seg button{border:0;background:var(--surface);padding:5px 10px;font-size:15px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.cards{display:grid;gap:10px}
+.card{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 12px 10px 14px;display:grid;gap:8px}
+.card.changed{box-shadow:inset 0 0 0 1px var(--claret)}
+.tbar{position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0}
+.chead{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start}
+.cy{font-family:var(--display);font-size:28px;font-weight:700;line-height:.95}
+.card .t{font-weight:600;font-size:15px;line-height:1.25}
+.pk{font-family:var(--mono);font-size:12px;font-weight:600;border:1px solid var(--gold);color:var(--gold);background:var(--gold-soft);border-radius:6px;padding:3px 6px;text-align:center;line-height:1.1}
+.pk small{display:block;font-size:8.5px;letter-spacing:.06em}
+.pk.alt{border-style:dashed;border-color:var(--line);color:var(--ink);background:transparent}
+.pk.none{border-color:var(--line);color:var(--muted);background:transparent}
+.cfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px dashed var(--line);padding-top:8px}
+.money{text-align:right;font-size:12.5px;color:var(--muted)}
+.money b{display:block;color:var(--ink);font-size:15px}
+.sbtn{width:100%;background:none;border:0;padding:3px 0;text-align:left;color:inherit}
+.hbar .tr.stk{display:flex;gap:2px;background:none}
+.hbar .tr.stk span{height:100%}
+.facts{grid-template-columns:1fr 1fr}
+.cols{display:flex;align-items:flex-end;gap:2px;height:150px;border-bottom:1px solid var(--line)}
+.col{flex:1 1 0;min-width:0;height:100%;position:relative}
+.col .b{position:absolute;bottom:0;left:10%;right:10%;border-radius:3px 3px 0 0}
+.col .b.win{background:var(--claret-soft);border:1px solid color-mix(in srgb,var(--claret) 35%,transparent);border-bottom:0}
+.col .b.pk2{background:var(--claret);left:28%;right:28%}
+.col .b.one{background:var(--claret)}
+.col.now::after{content:"";position:absolute;inset:0;background:color-mix(in srgb,var(--gold) 12%,transparent);border-radius:3px}
+.xlab{display:flex;gap:2px;margin-top:3px}
+.xlab span{flex:1 1 0;min-width:0;text-align:center;font-family:var(--mono);font-size:9.5px;color:var(--muted);white-space:nowrap;overflow:visible}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.lg{background:none;border:0;padding:0;color:inherit;font-size:12.5px}
+.stack{display:flex;height:20px;gap:2px;border-radius:4px;overflow:hidden}
+.stack span{display:block;height:100%}
 /* lock */
 .lock{min-height:100dvh;display:grid;place-items:center;padding:24px}
 .lockbox{width:100%;max-width:380px;display:grid;gap:14px;text-align:center}
@@ -180,7 +219,9 @@ async function encText(key,obj){const iv=crypto.getRandomValues(new Uint8Array(1
 
 /* ---------- state ---------- */
 let K=null, snap=null, view=ls.get("v","list");
-const ui=ls.get("ui",{q:"",place:"",sort:"region"});
+const ui=Object.assign({q:"",place:"",sort:"region",types:[],status:"",region:"",mode:"list"},ls.get("ui",{}));
+const TYPES=["Champagne","Vitt","Sött","Rött"],TCOL={Champagne:"var(--t-champ)",Vitt:"var(--t-white)",Sött:"var(--t-sweet)",Rött:"var(--t-red)"};
+const saveUi=()=>ls.set("ui",ui);
 let ops=ls.get("ops",[]);
 function saveOps(){ls.set("ops",ops);badges();}
 async function fetchJson(url,fresh){const r=await fetch(url+(fresh?"?t="+Date.now():""),{cache:fresh?"no-store":"default"});if(!r.ok)throw new Error(r.status);return r.json();}
@@ -258,7 +299,7 @@ function render(){
 }
 function renderList(){
   const q=ui.q.trim().toLowerCase();
-  let L=wines().filter(w=>w.qty>0||w._changed).filter(w=>!ui.place||w.place===ui.place);
+  let L=wines().filter(w=>w.qty>0||w._changed).filter(w=>(!ui.place||w.place===ui.place)&&(!ui.types.length||ui.types.includes(w.type))&&(!ui.status||status(w)===ui.status)&&(!ui.region||w.region===ui.region));
   if(q)L=L.filter(w=>q.split(/\s+/).every(t=>[w.year,w.name,w.producer,w.sub,w.region,w.country,w.loc].join(" ").toLowerCase().includes(t)));
   const s=ui.sort;
   if(s==="place")L.sort((a,b)=>(PLACES.indexOf(a.place)+99)%99-(PLACES.indexOf(b.place)+99)%99||regionCmp(a,b));
@@ -266,20 +307,22 @@ function renderList(){
   else if(s==="drink")L.sort((a,b)=>((win(a)||{}).to||9999)-((win(b)||{}).to||9999));
   else L.sort(regionCmp);
   const head=`<input class="search" id="q" type="search" placeholder="Sök vin, producent, årgång…" autocomplete="off">
-    <div class="chips"><button class="chip" data-place="" aria-pressed="${!ui.place}">Alla</button>${PLACES.map(p=>`<button class="chip" data-place="${esc(p)}" aria-pressed="${ui.place===p}">${esc(p.replace(" (MFW)",""))}</button>`).join("")}</div>
-    <div class="trow" style="margin:6px 0 2px"><span class="sub">${L.length} rader · ${L.reduce((s,w)=>s+w.qty,0)} fl</span>
-    <span><select id="sort"><option value="region"${s==="region"?" selected":""}>Land och region</option><option value="place"${s==="place"?" selected":""}>Lagringsplats</option><option value="value"${s==="value"?" selected":""}>Värde</option><option value="drink"${s==="drink"?" selected":""}>Drick först</option></select> <button class="chip" id="addBtn" type="button">+ Nytt</button></span></div>`;
+    <div class="chips"><button class="chip" data-place="" aria-pressed="${!ui.place}">Alla platser</button>${PLACES.map(p=>`<button class="chip" data-place="${esc(p)}" aria-pressed="${ui.place===p}">${esc(p.replace(" (MFW)",""))}</button>`).join("")}</div>
+    <div class="chips">${ui.status?`<button class="chip on" data-clear="status">${ST[ui.status][0]} ✕</button>`:""}${ui.region?`<button class="chip on" data-clear="region">${esc(ui.region)} ✕</button>`:""}${TYPES.map(t=>`<button class="chip" data-type="${t}" aria-pressed="${ui.types.includes(t)}"><span class="tdot" style="background:${TCOL[t]}"></span>${t}</button>`).join("")}</div>
+    <div class="ctl"><span class="sub">${L.length} rader · ${L.reduce((s,w)=>s+w.qty,0)} fl</span>
+    <span class="ctlr"><select id="sort"><option value="region"${s==="region"?" selected":""}>Land och region</option><option value="place"${s==="place"?" selected":""}>Lagringsplats</option><option value="value"${s==="value"?" selected":""}>Värde</option><option value="drink"${s==="drink"?" selected":""}>Drick först</option></select> <span class="seg"><button data-mode="list" aria-pressed="${ui.mode!=="cards"}" aria-label="Lista">☰</button><button data-mode="cards" aria-pressed="${ui.mode==="cards"}" aria-label="Vinkort">▦</button></span> <button class="chip" id="addBtn" type="button">+ Nytt</button></span></div>`;
   if(!L.length) return head+`<p class="sub" style="text-align:center;padding:30px">Inga viner matchar.</p>`;
   const grouped=s==="region"||s==="place";
   let out="",lastG=null,lastP=null,buf=[];
-  const flush=()=>{if(buf.length){out+=`<div class="list">${buf.join("")}</div>`;buf=[];}};
+  const cards=ui.mode==="cards";
+  const flush=()=>{if(buf.length){out+=cards?`<div class="cards">${buf.join("")}</div>`:`<div class="list">${buf.join("")}</div>`;buf=[];}};
   for(const w of L){
     if(grouped){
       if(s==="place"&&w.place!==lastP){flush();const it=L.filter(x=>x.place===w.place);out+=`<div class="phead"><span>${esc(w.place||"Okänd")}</span><small>${it.reduce((a,x)=>a+x.qty,0)} fl</small></div>`;lastP=w.place;lastG=null;}
       const g=[w.country,w.region,w.sub].join("|");
       if(g!==lastG){flush();out+=`<div class="ghead"><span>${esc([w.region,w.sub&&w.sub!==w.region?w.sub:null,w.country].filter(Boolean).join(" · "))}</span><span></span></div>`;lastG=g;}
     }
-    buf.push(row(w));
+    buf.push(cards?card(w):row(w));
   }
   flush();
   return head+(grouped?"":"<div style='height:8px'></div>")+out;
@@ -291,6 +334,17 @@ function row(w){
     <div class="m">${esc(w.producer&&!String(w.name).includes(String(w.producer).replace(/^Ch\. /,""))?w.producer+" · ":"")}<span class="${ST[st][1]}">${ST[st][0]}${v?` ${v.from}–${v.to}`:""}</span>${w.parker?` · RP ${esc(w.parker)}`:w.altScore?` · ${esc(w.altShort||"")} ${esc(w.altScore)}`:""} · ${kr(w.value)}${w.place==="Primör"?` · <span class="pill prim">Primör</span>`:""}</div></div>
     <div class="qty"><button class="qb" data-minus="${esc(w.id)}" aria-label="Drack en">−</button><span class="qn num">${w.qty}</span><button class="qb" data-plus="${esc(w.id)}" aria-label="Lägg till en">+</button></div>
   </div>`;
+}
+function card(w){
+  const st=status(w),gain=w.buy?w.value/w.buy-1:null;
+  const p=w.parker?`<div class="pk"><small>PARKER</small>${esc(w.parker)}</div>`:w.altScore?`<div class="pk alt"><small>${esc((w.altShort||"").toUpperCase())}</small>${esc(w.altScore)}</div>`:`<div class="pk none"><small>PARKER</small>–</div>`;
+  return `<article class="card${w._changed||w._new?" changed":""}" data-id="${esc(w.id)}"><span class="tbar" style="background:${TCOL[w.type]||"var(--line)"}"></span>
+    <div class="chead" data-open="${esc(w.id)}"><div class="cy num">${w.year||"NV"}</div><div style="min-width:0"><div class="t">${esc(w.name)}${w.size&&w.size!=="Helflaska"?` <span class="sub">· ${esc(w.size)}</span>`:""}</div><div class="sub">${esc([w.producer,w.sub&&w.sub!==w.region?w.sub:null,w.region].filter(Boolean).join(" · "))}</div></div>${p}</div>
+    <div class="trow"><span><span class="pill ${ST[st][1]}">${ST[st][0]}</span>${w.place==="Primör"?` <span class="pill prim">Primör</span>`:""}</span><span class="sub">${esc(w.place||"")}</span></div>
+    <div data-open="${esc(w.id)}">${wbar(w)}</div>
+    <div class="cfoot"><div class="qty"><button class="qb" data-minus="${esc(w.id)}" aria-label="Drack en">−</button><span class="qn num">${w.qty}</span><button class="qb" data-plus="${esc(w.id)}" aria-label="Lägg till en">+</button></div>
+    <div class="money num"><b>${kr(w.value)}/fl</b>${kr((w.value||0)*w.qty)}${gain!=null?` · <span style="color:${gain>=0?"var(--ok)":"var(--late)"}">${gain>=0?"+":""}${Math.round(gain*100)} %</span>`:""}</div></div>
+  </article>`;
 }
 function wbar(w){
   const v=win(w);if(!v)return`<p class="sub">Inget drickfönster.</p>`;
@@ -364,18 +418,53 @@ function renderVert(){
       <div class="vline">${cells}</div></div>`;}).join("");
 }
 /* översikt */
+function colChart(cols,two,every){
+  const max=Math.max(1,...cols.map(c=>Math.max(c.a||0,c.b||0)));
+  return `<div class="cols">${cols.map(c=>`<div class="col${c.now?" now":""}" data-tip="${esc(c.tip)}">${two?`<span class="b win" style="height:${(c.a/max*100).toFixed(1)}%"></span><span class="b pk2" style="height:${(c.b/max*100).toFixed(1)}%"></span>`:`<span class="b one" style="height:${(c.a/max*100).toFixed(1)}%"></span>`}</div>`).join("")}</div><div class="xlab">${cols.map((c,i)=>`<span>${every&&i%every?"":esc(c.x)}</span>`).join("")}</div>`;
+}
 function renderStats(){
   const L=wines().filter(w=>w.qty>0),n=L.reduce((s,w)=>s+w.qty,0),val=L.reduce((s,w)=>s+w.qty*(w.value||0),0),buy=L.reduce((s,w)=>s+w.qty*(w.buy||0),0);
+  if(!n) return `<p class="sub">Inga flaskor.</p>`;
   const cnt={};L.forEach(w=>{const s=status(w);cnt[s]=(cnt[s]||0)+w.qty;});
-  const reg={};L.forEach(w=>reg[w.region]=(reg[w.region]||0)+w.qty);const R=Object.entries(reg).sort((a,b)=>b[1]-a[1]);const rmax=R[0]?R[0][1]:1;
-  const dear=L.slice().sort((a,b)=>(b.value||0)-(a.value||0))[0];
-  return `<div class="panel"><div class="facts">
-    <div class="fact"><div class="k">Värde</div><div class="v num">${kshort(val)}</div><div class="d">${buy?(val/buy-1>=0?"+":"")+Math.round((val/buy-1)*100)+" % mot inköp":""}</div></div>
-    <div class="fact"><div class="k">Flaskor</div><div class="v num">${n}</div><div class="d">${L.length} viner och årgångar</div></div>
-    <div class="fact"><div class="k">Drick nu</div><div class="v num">${(cnt.early||0)+(cnt.peak||0)+(cnt.now||0)+(cnt.late||0)}</div><div class="d">varav ${cnt.peak||0} vid topp</div></div>
-    <div class="fact"><div class="k">Dyraste</div><div class="v num">${kr(dear&&dear.value)}</div><div class="d">${esc(dear?label(dear):"")}</div></div></div></div>
-    <div class="panel"><h2>Drickfönster ${NOW}</h2>${Object.keys(ST).filter(k=>cnt[k]).map(k=>`<div class="hbar"><span class="${ST[k][1]}">${ST[k][0]}</span><span class="tr"><span style="width:${(cnt[k]/n*100).toFixed(1)}%;background:currentColor" class="${ST[k][1]}"></span></span><span class="n">${cnt[k]}</span></div>`).join("")}</div>
-    <div class="panel"><h2>Flaskor per distrikt</h2>${R.map(([r,c])=>`<div class="hbar"><span>${esc(r)}</span><span class="tr"><span style="width:${(c/rmax*100).toFixed(1)}%"></span></span><span class="n">${c}</span></div>`).join("")}</div>`;
+  const by=f=>L.slice().sort(f)[0];
+  const nm=w=>{const l=label(w);return esc(!w.producer||l.toLowerCase().includes(String(w.producer).toLowerCase().replace(/^ch\. /,""))?l:l+", "+w.producer);};
+  const dear=by((a,b)=>(b.value||0)-(a.value||0)),big=by((a,b)=>b.qty*(b.value||0)-a.qty*(a.value||0)),top=by((a,b)=>(pNum(b.parker)||0)-(pNum(a.parker)||0)||(b.value||0)-(a.value||0)),old=by((a,b)=>(a.year||9999)-(b.year||9999)),most=by((a,b)=>b.qty-a.qty);
+  const gain=L.filter(w=>w.buy).sort((a,b)=>b.value/b.buy-a.value/a.buy)[0];
+  const prods={};L.forEach(w=>prods[w.producer]=(prods[w.producer]||0)+w.qty);const tp=Object.entries(prods).sort((a,b)=>b[1]-a[1])[0];
+  const lastYr=Math.max(...L.map(w=>(win(w)||{}).to||0));
+  const fact=(k,v,d)=>`<div class="fact"><div class="k">${k}</div><div class="v num">${v}</div><div class="d">${d}</div></div>`;
+  const facts=[fact("Värde",kshort(val),buy?`${val/buy-1>=0?"+":""}${Math.round((val/buy-1)*100)} % mot inköp`:""),fact("Flaskor",n,`${L.length} viner och årgångar`),
+    fact("Räcker i",`${(n/52).toLocaleString("sv-SE",{maximumFractionDigits:1})} år`,"med en flaska i veckan"),fact("Snittvärde",kr(val/n),"per flaska"),
+    fact("Dyraste",kr(dear.value),nm(dear)),fact("Största innehav",kshort(big.qty*big.value),`${big.qty} fl ${nm(big)}`),
+    fact("Högst betyg",esc(top.parker||"–"),nm(top)),fact("Äldsta",old.year||"–",nm(old)),
+    fact("Flest flaskor",`${most.qty} fl`,nm(most)),fact("Bästa affären",gain?`+${Math.round((gain.value/gain.buy-1)*100)} %`:"–",gain?nm(gain):""),
+    fact("Favoritproducent",`${tp[1]} fl`,esc(tp[0]||"")),fact("Sista drickår",lastYr||"–","då stänger sista fönstret")].join("");
+  // status
+  const stat=Object.keys(ST).filter(k=>cnt[k]).map(k=>`<button class="hbar sbtn" data-status="${k}"><span class="${ST[k][1]}" style="font-weight:600">${ST[k][0]}</span><span class="tr"><span style="width:${(cnt[k]/n*100).toFixed(1)}%;background:currentColor" class="${ST[k][1]}"></span></span><span class="n">${cnt[k]} ›</span></button>`).join("");
+  // drickplan
+  const yrs=[];for(let y=NOW;y<=NOW+24;y++)yrs.push(y);
+  const plan=yrs.map(y=>{let a=0,b=0;L.forEach(w=>{const v=win(w);if(!v)return;if(y>=v.from&&y<=v.to)a+=w.qty;const z=zones(v);if(Math.abs(y-z.mid)<=z.band)b+=w.qty;});return{x:"’"+String(y).slice(2),a,b,y,now:y===NOW,tip:`${y}: ${a} fl i fönstret, ${b} vid topp`};});
+  const best=plan.reduce((m,c)=>c.b>m.b?c:m,{b:-1});
+  // distrikt per typ
+  const reg={};L.forEach(w=>{const r=w.region||"Övrigt";(reg[r]=reg[r]||{n:0,t:{}});reg[r].n+=w.qty;reg[r].t[w.type]=(reg[r].t[w.type]||0)+w.qty;});
+  const R=Object.entries(reg).sort((a,b)=>b[1].n-a[1].n),rmax=R[0][1].n;
+  const regH=R.map(([r,o])=>`<button class="hbar sbtn" data-region="${esc(r)}"><span>${esc(r)}</span><span class="tr stk" style="width:${(o.n/rmax*100).toFixed(1)}%">${TYPES.filter(t=>o.t[t]).map(t=>`<span style="flex:${o.t[t]};background:${TCOL[t]}"></span>`).join("")}</span><span class="n">${o.n}</span></button>`).join("");
+  const ty={};L.forEach(w=>ty[w.type]=(ty[w.type]||0)+w.qty);
+  const tyH=`<div class="stack">${TYPES.filter(t=>ty[t]).map(t=>`<span style="flex:${ty[t]};background:${TCOL[t]}"></span>`).join("")}</div><div class="legend">${TYPES.filter(t=>ty[t]).map(t=>`<button class="lg" data-type-go="${t}"><i style="background:${TCOL[t]}"></i>${t} ${ty[t]} fl · ${Math.round(ty[t]/n*100)} %</button>`).join("")}</div>`;
+  // parker
+  const bk=[["≤90",0,90],["91–93",91,93],["94–95",94,95],["96–97",96,97],["98–100",98,100]];
+  const pk=bk.map(([x,lo,hi])=>{const c=L.filter(w=>{const p=pNum(w.parker);return p&&p>=lo&&p<=hi;}).reduce((s,w)=>s+w.qty,0);return{x,a:c,tip:`Parker ${x}: ${c} fl`};});
+  const noP=L.filter(w=>!pNum(w.parker)).reduce((s,w)=>s+w.qty,0);
+  // årgångar
+  const vy={};L.forEach(w=>{if(w.year)vy[w.year]=(vy[w.year]||0)+w.qty;});const ys=Object.keys(vy).map(Number);const vint=[];for(let y=Math.min(...ys);y<=Math.max(...ys);y++)vint.push({x:"’"+String(y).slice(2),a:vy[y]||0,tip:`${y}: ${vy[y]||0} fl`});
+  return `<div class="panel"><h2>Kul fakta</h2><div class="facts">${facts}</div></div>
+    <div class="panel"><h2>Drickfönster ${NOW}</h2><p class="sub" style="margin:-4px 0 8px">Tryck för att se vinerna.</p>${stat}</div>
+    <div class="panel"><h2>Drickplan ${NOW}–${NOW+24}</h2><p class="sub" style="margin:-4px 0 8px">Flaskor i fönstret per år och hur många som är vid topp.${best.b>0?` Flest vid topp: <b style="color:var(--ink)">${best.y}</b> (${best.b} fl).`:""}</p>${colChart(plan,true,4)}
+      <div class="legend"><span><i style="background:var(--claret-soft);border:1px solid var(--claret)"></i>I fönstret</span><span><i style="background:var(--claret)"></i>Vid topp</span></div><div id="tipline" class="sub" style="min-height:1.4em;margin-top:4px"></div></div>
+    <div class="panel"><h2>Flaskor per distrikt</h2>${regH}<div class="legend">${TYPES.filter(t=>ty[t]).map(t=>`<span><i style="background:${TCOL[t]}"></i>${t}</span>`).join("")}</div></div>
+    <div class="panel"><h2>Typ av vin</h2>${tyH}</div>
+    <div class="panel"><h2>Parker-betyg</h2><p class="sub" style="margin:-4px 0 8px">Flaskor per intervall${noP?` · ${noP} fl utan Parker-betyg`:""}.</p>${colChart(pk,false,0)}</div>
+    <div class="panel"><h2>Årgångar</h2>${colChart(vint,false,vint.length>12?3:0)}</div>`;
 }
 /* synk */
 function renderSync(){
@@ -400,11 +489,19 @@ async function exportOps(){
   else{$("#sheetBody").innerHTML=`<h3>Kopiera koden</h3><textarea style="width:100%;height:160px" readonly>${esc(code)}</textarea><button class="btn block" data-close>Stäng</button>`;openSheet();}
 }
 
+function goList(){ui.q="";ui.place="";saveUi();view="list";ls.set("v",view);render();window.scrollTo(0,0);}
 /* ---------- events ---------- */
 document.addEventListener("click",e=>{
   const t=e.target;
   const tab=t.closest("nav.tabs button");if(tab){view=tab.dataset.v;ls.set("v",view);render();window.scrollTo(0,0);return;}
-  const ch=t.closest("[data-place]");if(ch){ui.place=ch.dataset.place;ls.set("ui",ui);render();return;}
+  const ch=t.closest("[data-place]");if(ch){ui.place=ch.dataset.place;saveUi();render();return;}
+  const ty=t.closest("[data-type]");if(ty){const v=ty.dataset.type;ui.types=ui.types.includes(v)?ui.types.filter(x=>x!==v):[...ui.types,v];saveUi();render();return;}
+  const tg=t.closest("[data-type-go]");if(tg){ui.types=[tg.dataset.typeGo];ui.status="";ui.region="";goList();return;}
+  const sb=t.closest("[data-status]");if(sb){ui.status=sb.dataset.status;ui.region="";goList();return;}
+  const rb=t.closest("[data-region]");if(rb){ui.region=rb.dataset.region;ui.status="";goList();return;}
+  const cl=t.closest("[data-clear]");if(cl){ui[cl.dataset.clear]="";saveUi();render();return;}
+  const md=t.closest("[data-mode]");if(md){ui.mode=md.dataset.mode;saveUi();render();return;}
+  const tip=t.closest("[data-tip]");if(tip){const l=$("#tipline");if(l)l.textContent=tip.dataset.tip;return;}
   const mi=t.closest("[data-minus]");if(mi){openDrink(mi.dataset.minus);return;}
   const dr=t.closest("[data-drink]");if(dr){openDrink(dr.dataset.drink);return;}
   const pl=t.closest("[data-plus]");if(pl){const w=wines().find(x=>x.id===pl.dataset.plus);if(w){addOp({type:"added",wineId:w.id,delta:1,label:label(w),date:today(),baseQty:w.qty});closeSheet();toast(`La till en ${label(w)}.`);}return;}
