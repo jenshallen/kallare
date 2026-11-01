@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 KEEP = ["year","name","producer","sub","region","country","type","style","size","qty","buy","value",
         "parker","altScore","altShort","altCritic","from","to","winPref","waFrom","waTo","waReviewer",
-        "waDate","waSummary","waUrl","place","loc","myNote","valuedAt"]
+        "waDate","waSummary","waUrl","place","loc","myNote","valuedAt","prof"]
 VKEEP = ["order","name","producer","region","country","type","match","sbLatest","sbLabel","sbUrl",
          "sbPrice","ackYear","notProduced"]
 
