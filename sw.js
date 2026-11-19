@@ -1,6 +1,6 @@
 /* Vinkällaren service worker: appen fungerar offline. Datan är krypterad.
    Appens filer och datan hämtas alltid färskt från nätet när det finns, annars från cachen. */
-const CACHE="kallare-v4";
+const CACHE="kallare-v5";
 const SHELL=["./","index.html","pairing.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png","icons/apple-touch-icon.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL.map(u=>new Request(u,{cache:"reload"})))).then(()=>self.skipWaiting()));});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});

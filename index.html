@@ -207,7 +207,7 @@ button.fact{text-align:left;font:inherit;color:inherit;background:none;width:100
 <script src="pairing.js"></script>
 <script>
 "use strict";
-const APP_VERSION="2026-11-01d";
+const APP_VERSION="2026-11-19a";
 const NOW=new Date().getFullYear();
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -398,6 +398,7 @@ function openDrink(id){
 }
 function openAdd(){
   $("#sheetBody").innerHTML=`<h3>Lägg till vin</h3>
+    <a class="btn" style="display:block;text-align:center;margin-bottom:10px;text-decoration:none" href="https://claude.ai/artifact/UL6EyRo2xPf5FxVCF7m8Zh" target="_blank" rel="noopener">📷 Skanna etiketten i vinlistan (kräver internet)</a>
     <form id="addForm" style="display:grid;gap:10px">
     <label class="f">Vin<input id="aName" required placeholder="t.ex. Ch. Lynch-Bages"></label>
     <div class="grid2"><label class="f">Producent<input id="aProd"></label><label class="f">Årgång<input id="aYear" type="number" inputmode="numeric"></label></div>
